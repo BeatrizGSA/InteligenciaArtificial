@@ -1,0 +1,93 @@
+# Importamos las librerías necesarias
+from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    ConversationHandler, ContextTypes, filters
+)
+
+# Definimos los estados de la conversación
+START, TEST_SELECT, DISC1, DISC2, DISC3, DISC4, ENTREVISTA, CIERRE = range(8)
+
+# Estado inicial del bot, responde al comando /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "¡Hola! Soy Tlabaja 🤖. Te ayudaré a entrenar entrevistas.\n\n"
+        "Primero haremos un pequeño test de perfil. ¿Cuál prefieres?",
+        reply_markup=ReplyKeyboardMarkup([['DISC', 'Hogan']], one_time_keyboard=True)
+    )
+    return TEST_SELECT
+
+# El usuario selecciona el tipo de test de perfil
+async def select_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    test = update.message.text.lower()
+    context.user_data['test'] = test
+    if test == 'disc':
+        await update.message.reply_text("Pregunta 1: ¿Prefieres trabajar en grupo o solo?")
+        return DISC1
+    else:
+        await update.message.reply_text("Por ahora solo tenemos disponible el test DISC.")
+        return DISC1
+
+# Pregunta 1 del test DISC
+async def disc1(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['disc1'] = update.message.text
+    await update.message.reply_text("Pregunta 2: ¿Tomas decisiones rápidamente o prefieres analizar?")
+    return DISC2
+
+# Pregunta 2 del test DISC
+async def disc2(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['disc2'] = update.message.text
+    await update.message.reply_text("Pregunta 3: ¿Qué te motiva más: logros personales o ayudar al equipo?")
+    return DISC3
+
+# Pregunta 3 del test DISC
+async def disc3(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['disc3'] = update.message.text
+    await update.message.reply_text("Pregunta 4: ¿Te incomodan los conflictos?")
+    return DISC4
+
+# Pregunta 4 y cálculo del perfil DISC
+async def disc4(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['disc4'] = update.message.text
+    perfil = "Colaborador"  # Asignación temporal, luego se puede hacer más sofisticado
+    context.user_data['perfil'] = perfil
+    await update.message.reply_text(f"¡Gracias! Tu perfil es: {perfil}.\n\nComencemos con la entrevista.")
+    await update.message.reply_text("Pregunta: ¿Cuáles son tus fortalezas?")
+    return ENTREVISTA
+
+# Estado ENTREVISTA, simula una pregunta laboral
+async def entrevista(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['respuesta_entrevista'] = update.message.text
+    await update.message.reply_text(
+        "Gracias por tu respuesta. Seguiremos practicando.\n"
+        f"Recuerda que con un perfil {context.user_data['perfil']} es clave destacar tu capacidad colaborativa."
+    )
+    return CIERRE
+
+# Estado CIERRE, finaliza la conversación
+async def cierre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Gracias por usar Tlabaja. Puedes practicar nuevamente escribiendo /start.\n¡Éxitos en tus entrevistas!"
+    )
+    return ConversationHandler.END
+
+# Configuración del flujo conversacional completo
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("start", start)],
+    states={
+        TEST_SELECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, select_test)],
+        DISC1: [MessageHandler(filters.TEXT, disc1)],
+        DISC2: [MessageHandler(filters.TEXT, disc2)],
+        DISC3: [MessageHandler(filters.TEXT, disc3)],
+        DISC4: [MessageHandler(filters.TEXT, disc4)],
+        ENTREVISTA: [MessageHandler(filters.TEXT, entrevista)],
+        CIERRE: [MessageHandler(filters.TEXT, cierre)],
+    },
+    fallbacks=[],
+)
+
+# Inicio de la aplicación del bot
+if __name__ == "__main__":
+    app = ApplicationBuilder().token("TU_TOKEN_AQUI").build()  # Reemplazar con el token real del bot
+    app.add_handler(conv_handler)
+    app.run_polling()
